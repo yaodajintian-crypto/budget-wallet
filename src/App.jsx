@@ -2,21 +2,52 @@ import { useEffect, useMemo, useState } from "react";
 import { db } from "./firebase";
 import { collection, addDoc, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { onSnapshot } from "firebase/firestore";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged
+} from "firebase/auth";
 
 export default function App() {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+  if (!user) {
+    setPosts([]);
+    return;
+  }
+
+  const unsubscribe = onSnapshot(collection(db, "posts"), (snapshot) => {
+    const data = snapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      .filter((post) => post.userId === user.uid)
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+    setPosts(data);
+  });
+
+  return () => unsubscribe();
+}, [user]);
 
   const saveData = async () => {
+    
     if (!memo.trim()) {
     alert("メモを入力してください");
     return;
   }
 
   await addDoc(collection(db, "posts"), {
-    text: memo,
-    type: type,
-    money: money,
-    createdAt: new Date()
-  });
+  text: memo,
+  type: type,
+  money: amount,
+  createdAt: new Date(),
+  userId: user.uid
+});
 
   alert("保存しました");
   };
@@ -74,6 +105,11 @@ const totalIncome = useMemo(() => {
   }, [startMoney, totalIncome, totalExpense]);
 
   const addItem = async () => {
+  if (!user) {
+    alert("ログインしてください");
+    return;
+  }
+
   const amount = Number(money);
 
   if (!amount || amount <= 0) {
@@ -87,11 +123,12 @@ const totalIncome = useMemo(() => {
   }
 
   await addDoc(collection(db, "posts"), {
-    text: memo,
-    type: type,
-    money: amount,
-    createdAt: new Date()
-  });
+  text: memo,
+  type: type,
+  money: amount,
+  createdAt: new Date(),
+  userId: user.uid
+});
 
   setMoney("");
   setMemo("");
@@ -101,6 +138,14 @@ const totalIncome = useMemo(() => {
     <div style={styles.page}>
       <div style={styles.app}>
         <header style={styles.header}>
+          {user ? (
+          <>
+          <p>{user.displayName}でログイン中</p>
+          <button onClick={logout}>ログアウト</button>
+          </>
+          ) : (
+          <button onClick={login}>Googleでログイン</button>
+          )}
           <p style={styles.label}>My Budget Wallet</p>
           <h1 style={styles.title}>節約財布</h1>
           <p style={styles.text}>

@@ -39,11 +39,6 @@ export default function App() {
   const [money, setMoney] = useState("");
   const [memo, setMemo] = useState("");
   const [type, setType] = useState("expense");
-
-  const [items, setItems] = useState(() => {
-    const saved = localStorage.getItem("budget-items");
-    return saved ? JSON.parse(saved) : [];
-  });
   const [posts, setPosts] = useState([]);
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "posts"), (snapshot) => {
@@ -57,56 +52,55 @@ export default function App() {
 
   return () => unsubscribe();
 }, []);
-  useEffect(() => {
-    localStorage.setItem("budget-items", JSON.stringify(items));
-  }, [items]);
 
   useEffect(() => {
     localStorage.setItem("budget-start-money", startMoney);
   }, [startMoney]);
 
   const totalExpense = useMemo(() => {
-    return items
-      .filter((item) => item.type === "expense")
-      .reduce((sum, item) => sum + item.amount, 0);
-  }, [items]);
+  return posts
+    .filter((post) => post.type === "expense")
+    .reduce((sum, post) => sum + Number(post.money || 0), 0);
+}, [posts]);
 
-  const totalIncome = useMemo(() => {
-    return items
-      .filter((item) => item.type === "income")
-      .reduce((sum, item) => sum + item.amount, 0);
-  }, [items]);
+const totalIncome = useMemo(() => {
+  return posts
+    .filter((post) => post.type === "income")
+    .reduce((sum, post) => sum + Number(post.money || 0), 0);
+}, [posts]);
 
   const currentMoney = useMemo(() => {
     return Number(startMoney || 0) + totalIncome - totalExpense;
   }, [startMoney, totalIncome, totalExpense]);
 
-  const addItem = () => {
-    const amount = Number(money);
-    if (!amount || amount <= 0) return;
+  const addItem = async () => {
+  const amount = Number(money);
 
-    const newItem = {
-      id: Date.now(),
-      amount,
-      memo: memo || "メモなし",
-      type,
-      date: new Date().toLocaleDateString("ja-JP"),
-    };
+  if (!amount || amount <= 0) {
+    alert("金額を入力してください");
+    return;
+  }
 
-    setItems([newItem, ...items]);
-    setMoney("");
-    setMemo("");
-  };
+  if (!memo.trim()) {
+    alert("メモを入力してください");
+    return;
+  }
 
-  const deleteItem = (id) => {
-    setItems(items.filter((item) => item.id !== id));
-  };
+  await addDoc(collection(db, "posts"), {
+    text: memo,
+    type: type,
+    money: amount,
+    createdAt: new Date()
+  });
+
+  setMoney("");
+  setMemo("");
+};
 
   return (
     <div style={styles.page}>
       <div style={styles.app}>
         <header style={styles.header}>
-          <button onClick={saveData}>保存</button>
           <p style={styles.label}>My Budget Wallet</p>
           <h1 style={styles.title}>節約財布</h1>
           <p style={styles.text}>
@@ -130,19 +124,7 @@ export default function App() {
             <p style={styles.expenseText}>-{totalExpense.toLocaleString()}円</p>
           </div>
         </section>
-        <section style={styles.card}>
-          <p>履歴</p>
-          {posts.map((post) => (
-            <div key={post.id} style={{ marginBottom: "10px" }}>
-              <p>{post.text}</p>
-              <p>{post.money}円</p>
-              <p>{post.type}</p>
-              <button onClick={() => deleteDoc(doc(db, "posts", post.id))}>
-                削除
-              </button>
-            </div>
-          ))}
-        </section>
+        
         <section style={styles.form}>
           <input
             type="number"

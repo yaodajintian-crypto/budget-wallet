@@ -32,10 +32,6 @@ export default function App() {
   alert("全部消去しました");
 };
 
-const deleteOne = async (id) => {
-  await deleteDoc(doc(db, "posts", id));
-};
-
   const [startMoney, setStartMoney] = useState(() => {
     return localStorage.getItem("budget-start-money") || "";
   });
@@ -184,43 +180,36 @@ const deleteOne = async (id) => {
             追加する
           </button>
         </section>
-
         <section style={styles.history}>
           <h3 style={styles.subTitle}>履歴</h3>
-
-          {items.length === 0 ? (
+          {posts.length === 0 ? (
             <p style={styles.empty}>まだ記録がありません</p>
           ) : (
-            items.map((item) => (
-              <div key={item.id} style={styles.item}>
-                <div>
-                  <p style={styles.memo}>{item.memo}</p>
-                  <p style={styles.date}>{item.date}</p>
-                </div>
-
-                <div style={styles.right}>
-                  <p
-                    style={
-                      item.type === "income"
-                        ? styles.incomeText
-                        : styles.expenseText
-                    }
-                  >
-                    {item.type === "income" ? "+" : "-"}
-                    {item.amount.toLocaleString()}円
-                  </p>
-
-                  <button
-                    onClick={() => deleteItem(item.id)}
-                    style={styles.deleteButton}
-                  >
-                    削除
-                  </button>
-                </div>
+            posts.map((post) => (
+            <div key={post.id} style={styles.item}>
+              <div>
+                <p style={styles.memo}>{post.text}</p>
+                
+                <p style={styles.date}>
+                  {post.createdAt?.seconds
+                  ? new Date(post.createdAt.seconds * 1000).toLocaleString()
+                  : ""}
+                </p>
               </div>
-            ))
+            
+            <div style={styles.right}>
+              <p style={{ color: post.type === "income" ? "green" : "red" }}>
+                {post.type === "income" ? "+" : "-"}
+                {post.money}円
+              </p>
+              
+              <button onClick={() => deleteOne(post.id)}>削除</button>
+            </div>
+            </div>
+          ))
           )}
-        </section>
+          </section>
+
       </div>
     </div>
   );

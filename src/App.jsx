@@ -81,18 +81,35 @@ const logout = async () => {
   const [memo, setMemo] = useState("");
   const [type, setType] = useState("expense");
   const [posts, setPosts] = useState([]);
+  
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "posts"), (snapshot) => {
-    const data = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+  const auth = getAuth();
+
+  const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    setUser(currentUser);
+  });
+
+  return () => unsubscribe();
+}, []);
+  useEffect(() => {
+  if (!user) {
+    setPosts([]);
+    return;
+  }
+
+  const unsubscribe = onSnapshot(collection(db, "posts"), (snapshot) => {
+    const data = snapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+      .filter((post) => post.userId === user.uid);
 
     setPosts(data);
   });
 
   return () => unsubscribe();
-}, []);
+}, [user]);
 
   useEffect(() => {
     localStorage.setItem("budget-start-money", startMoney);

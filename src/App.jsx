@@ -172,9 +172,6 @@ const totalIncome = useMemo(() => {
   setMoney("");
   setMemo("");
 };
-
-const addItem = async () => {
-};
 const deleteOne = async (id) => {
   await deleteDoc(doc(db, "posts", id));
 };

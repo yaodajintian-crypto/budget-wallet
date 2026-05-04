@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
+import { db } from "./firebase";
+import { collection, addDoc } from "firebase/firestore";
 
 export default function App() {
+
+  const saveData = async () => {
+    await addDoc(collection(db, "posts"), {
+      text: "テスト投稿",
+      createdAt: new Date()
+    });
+  };
+
   const [startMoney, setStartMoney] = useState(() => {
     return localStorage.getItem("budget-start-money") || "";
   });
@@ -63,6 +73,7 @@ export default function App() {
     <div style={styles.page}>
       <div style={styles.app}>
         <header style={styles.header}>
+          <button onClick={saveData}>保存</button>
           <p style={styles.label}>My Budget Wallet</p>
           <h1 style={styles.title}>節約財布</h1>
           <p style={styles.text}>

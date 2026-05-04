@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { db } from "./firebase";
+import { deleteDoc, doc } from "firebase/firestore";
 import {
   collection,
   addDoc,
@@ -116,7 +117,7 @@ const logout = async () => {
         id: doc.id,
         ...doc.data(),
       }))
-      
+
     setPosts(data);
   });
 
@@ -170,6 +171,10 @@ const totalIncome = useMemo(() => {
 });
   setMoney("");
   setMemo("");
+};
+
+const deleteOne = async (id) => {
+  await deleteDoc(doc(db, "posts", id));
 };
 
   return (

@@ -1,15 +1,36 @@
 import { useEffect, useMemo, useState } from "react";
 import { db } from "./firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, getDocs, deleteDoc, doc } from "firebase/firestore";
 
 export default function App() {
 
   const saveData = async () => {
-    await addDoc(collection(db, "posts"), {
-      text: "テスト投稿",
-      createdAt: new Date()
-    });
+    if (!memo.trim()) {
+    alert("メモを入力してください");
+    return;
+  }
+
+  await addDoc(collection(db, "posts"), {
+    text: memo,
+    type: type,
+    money: money,
+    createdAt: new Date()
+  });
+
+  alert("保存しました");
   };
+  const deleteData = async () => {
+    const snapshot = await getDocs(collection(db, "posts"));
+    
+    await Promise.all(
+      snapshot.docs.map((data) =>
+      deleteDoc(doc(db, "posts", data.id))
+    )
+  );
+  
+  alert("全部消去しました");
+};
+};
 
   const [startMoney, setStartMoney] = useState(() => {
     return localStorage.getItem("budget-start-money") || "";

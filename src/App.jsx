@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 
 export default function App() {
+  const [startMoney, setStartMoney] = useState(() => {
+    return localStorage.getItem("budget-start-money") || "";
+  });
+
   const [money, setMoney] = useState("");
   const [memo, setMemo] = useState("");
+  const [type, setType] = useState("expense");
+
   const [items, setItems] = useState(() => {
     const saved = localStorage.getItem("budget-items");
     return saved ? JSON.parse(saved) : [];
@@ -12,9 +18,25 @@ export default function App() {
     localStorage.setItem("budget-items", JSON.stringify(items));
   }, [items]);
 
-  const total = useMemo(() => {
-    return items.reduce((sum, item) => sum + item.amount, 0);
+  useEffect(() => {
+    localStorage.setItem("budget-start-money", startMoney);
+  }, [startMoney]);
+
+  const totalExpense = useMemo(() => {
+    return items
+      .filter((item) => item.type === "expense")
+      .reduce((sum, item) => sum + item.amount, 0);
   }, [items]);
+
+  const totalIncome = useMemo(() => {
+    return items
+      .filter((item) => item.type === "income")
+      .reduce((sum, item) => sum + item.amount, 0);
+  }, [items]);
+
+  const currentMoney = useMemo(() => {
+    return Number(startMoney || 0) + totalIncome - totalExpense;
+  }, [startMoney, totalIncome, totalExpense]);
 
   const addItem = () => {
     const amount = Number(money);
@@ -24,6 +46,7 @@ export default function App() {
       id: Date.now(),
       amount,
       memo: memo || "メモなし",
+      type,
       date: new Date().toLocaleDateString("ja-JP"),
     };
 
@@ -42,15 +65,46 @@ export default function App() {
         <header style={styles.header}>
           <p style={styles.label}>My Budget Wallet</p>
           <h1 style={styles.title}>節約財布</h1>
-          <p style={styles.text}>支出を記録して、使った金額を見える化しよう。</p>
+          <p style={styles.text}>
+            入金と支出を記録して、現在のお金を見える化しよう。
+          </p>
         </header>
 
         <section style={styles.card}>
-          <p style={styles.cardLabel}>合計支出</p>
-          <h2 style={styles.total}>{total.toLocaleString()} 円</h2>
+          <p style={styles.cardLabel}>現在の残高</p>
+          <h2 style={styles.total}>{currentMoney.toLocaleString()} 円</h2>
+        </section>
+
+        <section style={styles.summary}>
+          <div style={styles.summaryBox}>
+            <p style={styles.summaryLabel}>入金合計</p>
+            <p style={styles.incomeText}>+{totalIncome.toLocaleString()}円</p>
+          </div>
+
+          <div style={styles.summaryBox}>
+            <p style={styles.summaryLabel}>支出合計</p>
+            <p style={styles.expenseText}>-{totalExpense.toLocaleString()}円</p>
+          </div>
         </section>
 
         <section style={styles.form}>
+          <input
+            type="number"
+            value={startMoney}
+            onChange={(e) => setStartMoney(e.target.value)}
+            placeholder="最初に持っているお金 例: 30000"
+            style={styles.input}
+          />
+
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            style={styles.input}
+          >
+            <option value="expense">支出</option>
+            <option value="income">入金</option>
+          </select>
+
           <input
             type="number"
             value={money}
@@ -62,7 +116,7 @@ export default function App() {
           <input
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
-            placeholder="メモ 例: 昼ごはん"
+            placeholder="メモ 例: 昼ごはん / バイト代"
             style={styles.input}
           />
 
@@ -72,7 +126,7 @@ export default function App() {
         </section>
 
         <section style={styles.history}>
-          <h3 style={styles.subTitle}>支出履歴</h3>
+          <h3 style={styles.subTitle}>履歴</h3>
 
           {items.length === 0 ? (
             <p style={styles.empty}>まだ記録がありません</p>
@@ -85,7 +139,17 @@ export default function App() {
                 </div>
 
                 <div style={styles.right}>
-                  <p style={styles.amount}>{item.amount.toLocaleString()}円</p>
+                  <p
+                    style={
+                      item.type === "income"
+                        ? styles.incomeText
+                        : styles.expenseText
+                    }
+                  >
+                    {item.type === "income" ? "+" : "-"}
+                    {item.amount.toLocaleString()}円
+                  </p>
+
                   <button
                     onClick={() => deleteItem(item.id)}
                     style={styles.deleteButton}
@@ -107,8 +171,7 @@ const styles = {
     minHeight: "100vh",
     background: "#f4f6f8",
     padding: "24px 12px",
-    fontFamily:
-      "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     color: "#111827",
   },
   app: {
@@ -146,6 +209,33 @@ const styles = {
   total: {
     fontSize: 36,
     margin: "8px 0 0",
+  },
+  summary: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 10,
+    marginBottom: 16,
+  },
+  summaryBox: {
+    background: "white",
+    padding: 14,
+    borderRadius: 16,
+    boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
+  },
+  summaryLabel: {
+    margin: 0,
+    fontSize: 13,
+    color: "#6b7280",
+  },
+  incomeText: {
+    margin: 0,
+    fontWeight: "bold",
+    color: "#16a34a",
+  },
+  expenseText: {
+    margin: 0,
+    fontWeight: "bold",
+    color: "#dc2626",
   },
   form: {
     background: "white",
@@ -205,10 +295,6 @@ const styles = {
   },
   right: {
     textAlign: "right",
-  },
-  amount: {
-    margin: 0,
-    fontWeight: "bold",
   },
   deleteButton: {
     marginTop: 6,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { db } from "./firebase";
 import { collection, addDoc, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { onSnapshot } from "firebase/firestore";
 
 export default function App() {
 
@@ -31,6 +32,10 @@ export default function App() {
   alert("全部消去しました");
 };
 
+const deleteOne = async (id) => {
+  await deleteDoc(doc(db, "posts", id));
+};
+
   const [startMoney, setStartMoney] = useState(() => {
     return localStorage.getItem("budget-start-money") || "";
   });
@@ -43,7 +48,19 @@ export default function App() {
     const saved = localStorage.getItem("budget-items");
     return saved ? JSON.parse(saved) : [];
   });
+  const [posts, setPosts] = useState([]);
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "posts"), (snapshot) => {
+    const data = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data()
+    }));
 
+    setPosts(data);
+  });
+
+  return () => unsubscribe();
+}, []);
   useEffect(() => {
     localStorage.setItem("budget-items", JSON.stringify(items));
   }, [items]);
@@ -117,7 +134,19 @@ export default function App() {
             <p style={styles.expenseText}>-{totalExpense.toLocaleString()}円</p>
           </div>
         </section>
-
+        <section style={styles.card}>
+          <p>履歴</p>
+          {posts.map((post) => (
+            <div key={post.id} style={{ marginBottom: "10px" }}>
+              <p>{post.text}</p>
+              <p>{post.money}円</p>
+              <p>{post.type}</p>
+              <button onClick={() => deleteDoc(doc(db, "posts", post.id))}>
+                削除
+              </button>
+            </div>
+          ))}
+        </section>
         <section style={styles.form}>
           <input
             type="number"

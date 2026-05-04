@@ -30,7 +30,6 @@ export default function App() {
   
   alert("全部消去しました");
 };
-};
 
   const [startMoney, setStartMoney] = useState(() => {
     return localStorage.getItem("budget-start-money") || "";

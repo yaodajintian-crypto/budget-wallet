@@ -107,7 +107,6 @@ const totalIncome = useMemo(() => {
   const addItem = async () => {
   if (!user) {
     alert("ログインしてください");
-    return;
   }
 
   const amount = Number(money);
@@ -129,7 +128,6 @@ const totalIncome = useMemo(() => {
   createdAt: new Date(),
   userId: user.uid
 });
-
   setMoney("");
   setMemo("");
 };

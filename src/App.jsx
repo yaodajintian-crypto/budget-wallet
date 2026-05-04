@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { db } from "./firebase";
-import { collection, addDoc, getDocs, deleteDoc, doc } from "firebase/firestore";
-import { onSnapshot } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  where
+} from "firebase/firestore";
 import {
   getAuth,
   GoogleAuthProvider,
@@ -92,19 +100,23 @@ const logout = async () => {
   return () => unsubscribe();
 }, []);
   useEffect(() => {
-  if (!user) {
-    setPosts([]);
-    return;
-  }
+    if (!user) {
+      setPosts([]);
+      return;
+    }
 
-  const unsubscribe = onSnapshot(collection(db, "posts"), (snapshot) => {
+    const q = query(
+    collection(db, "posts"),
+    where("userId", "==", user.uid)
+  );
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
     const data = snapshot.docs
       .map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }))
-      .filter((post) => post.userId === user.uid);
-
+      
     setPosts(data);
   });
 

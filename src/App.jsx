@@ -33,6 +33,16 @@ export default function App() {
 
   return () => unsubscribe();
 }, [user]);
+const login = async () => {
+  const auth = getAuth();
+  const provider = new GoogleAuthProvider();
+  await signInWithPopup(auth, provider);
+};
+
+const logout = async () => {
+  const auth = getAuth();
+  await signOut(auth);
+};
 
   const saveData = async () => {
     
@@ -107,6 +117,7 @@ const totalIncome = useMemo(() => {
   const addItem = async () => {
   if (!user) {
     alert("ログインしてください");
+    return;
   }
 
   const amount = Number(money);

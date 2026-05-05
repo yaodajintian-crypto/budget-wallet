@@ -374,7 +374,7 @@ const deleteOne = async (id) => {
           {posts.length === 0 ? (
             <p style={styles.empty}>まだ記録がありません</p>
           ) : (
-            posts.map((post) => (
+            posts.map(() => (
             <div key={post.id} style={styles.item}>
               <div>
                 <p style={styles.memo}>{post.text}</p>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { db } from "./firebase";
+import "./App.css";
 import {
   collection,
   addDoc,
@@ -10,6 +11,15 @@ import {
   where
 } from "firebase/firestore";
 import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+import { serverTimestamp } from "firebase/firestore";
+import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
@@ -19,26 +29,61 @@ import {
 
 export default function App() {
   const [user, setUser] = useState(null);
-
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().slice(0, 10)
+  );
+  const [category, setCategory] = useState("食費");
   useEffect(() => {
   if (!user) {
     setPosts([]);
     return;
   }
+// 選択した日のデータだけ取り出す
+const selectedDayItems = posts.filter((post) => {
+  if (!post.createdAt) return false;
 
-  const unsubscribe = onSnapshot(collection(db, "posts"), (snapshot) => {
-    const data = snapshot.docs
-      .map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      .filter((post) => post.userId === user.uid)
-      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  const date = post.createdAt.toDate
+    ? post.createdAt.toDate()
+    : new Date(post.createdAt);
 
-    setPosts(data);
-  });
+  const formattedDate = date.toISOString().slice(0, 10);
+  return formattedDate === selectedDate;
+});
 
-  return () => unsubscribe();
+// 選択した日の入金合計
+const selectedDayIncome = selectedDayItems
+  .filter((post) => post.type === "income")
+  .reduce((sum, post) => sum + Number(post.amount), 0);
+
+// 選択した日の支出合計
+const selectedDayExpense = selectedDayItems
+  .filter((post) => post.type === "expense")
+  .reduce((sum, post) => sum + Number(post.amount), 0);
+
+// カテゴリー別の支出集計
+const categoryTotals = posts
+  .filter(post => post.type === "expense")
+  .reduce((acc, post) => {
+    const category = post.category || "その他";
+    acc[category] = (acc[category] || 0) + Number(post.amount);
+    return acc;
+  }, {});
+
+const pieData = Object.entries(categoryTotals).map(([name, value]) => ({
+  name,
+  value,
+}));
+
+const pieColors = [
+  "#2563eb",
+  "#16a34a",
+  "#f97316",
+  "#dc2626",
+  "#9333ea",
+  "#0891b2",
+  "#ca8a04",
+];
+  
 }, [user]);
 const login = async () => {
   const auth = getAuth();
@@ -59,11 +104,12 @@ const logout = async () => {
   }
 
   await addDoc(collection(db, "posts"), {
-  text: memo,
+  userId: user.uid,
+  amount: Number(amount),
   type: type,
-  money: amount,
-  createdAt: new Date(),
-  userId: user.uid
+  memo: memo,
+  category: category, // ←追加
+  createdAt: serverTimestamp(),
 });
 
   alert("保存しました");
@@ -111,10 +157,15 @@ const logout = async () => {
 
   const unsubscribe = onSnapshot(q, (snapshot) => {
     const data = snapshot.docs
-      .map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }))
+  .map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }))
+  .sort((a, b) => {
+    const timeA = a.createdAt?.seconds || 0;
+    const timeB = b.createdAt?.seconds || 0;
+    return timeB - timeA;
+  });
 
     setPosts(data);
   });
@@ -129,13 +180,13 @@ const logout = async () => {
   const totalExpense = useMemo(() => {
   return posts
     .filter((post) => post.type === "expense")
-    .reduce((sum, post) => sum + Number(post.money || 0), 0);
+    .reduce((sum, post) => sum + Number(post.amount || 0), 0);
 }, [posts]);
 
 const totalIncome = useMemo(() => {
   return posts
     .filter((post) => post.type === "income")
-    .reduce((sum, post) => sum + Number(post.money || 0), 0);
+    .reduce((sum, post) => sum + Number(post.amount || 0), 0);
 }, [posts]);
 
   const currentMoney = useMemo(() => {
@@ -163,8 +214,8 @@ const totalIncome = useMemo(() => {
   await addDoc(collection(db, "posts"), {
   text: memo,
   type: type,
-  money: amount,
-  createdAt: new Date(),
+  amount: amount,
+  createdAt: serverTimestamp(),
   userId: user.uid
 });
   setMoney("");
@@ -188,7 +239,8 @@ const deleteOne = async (id) => {
           )}
           <p style={styles.label}>My Budget Wallet</p>
           <h1 style={styles.title}>節約財布</h1>
-          <p style={styles.text}>
+          <p style={styles.memo}>
+            {post.memo || post.text}
             入金と支出を記録して、現在のお金を見える化しよう。
           </p>
         </header>
@@ -197,6 +249,35 @@ const deleteOne = async (id) => {
           <p style={styles.cardLabel}>現在の残高</p>
           <h2 style={styles.total}>{currentMoney.toLocaleString()} 円</h2>
         </section>
+
+        <section className="calendar-card">
+  <h2>日別カレンダー集計</h2>
+
+  <input
+    type="date"
+    value={selectedDate}
+    onChange={(e) => setSelectedDate(e.target.value)}
+  />
+
+  <div className="daily-summary">
+    <div>
+      <p>この日の入金</p>
+      <strong className="income">+{selectedDayIncome.toLocaleString()}円</strong>
+    </div>
+
+    <div>
+      <p>この日の支出</p>
+      <strong className="expense">-{selectedDayExpense.toLocaleString()}円</strong>
+    </div>
+
+    <div>
+      <p>この日の差額</p>
+      <strong>
+        {(selectedDayIncome - selectedDayExpense).toLocaleString()}円
+      </strong>
+    </div>
+  </div>
+</section>
 
         <section style={styles.summary}>
           <div style={styles.summaryBox}>
@@ -226,6 +307,13 @@ const deleteOne = async (id) => {
           >
             <option value="expense">支出</option>
             <option value="income">入金</option>
+            <option value="食費">食費</option>
+            <option value="交通費">交通費</option>
+            <option value="日用品">日用品</option>
+            <option value="娯楽">娯楽</option>
+            <option value="勉強">勉強</option>
+            <option value="収入">収入</option>
+            <option value="その他">その他</option>
           </select>
 
           <input
@@ -247,6 +335,40 @@ const deleteOne = async (id) => {
             追加する
           </button>
         </section>
+        <section className="chart-card">
+  <h2>カテゴリー別支出</h2>
+
+  {pieData.length === 0 ? (
+    <p>まだ支出データがありません</p>
+  ) : (
+    <div className="chart-box">
+      <ResponsiveContainer width="100%" height={300}>
+        <PieChart>
+          <Pie
+            data={pieData}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            outerRadius={90}
+            label={({ name, value }) =>
+              `${name}: ${value.toLocaleString()}円`
+            }
+          >
+            {pieData.map((entry, index) => (
+              <Cell
+                key={entry.name}
+                fill={pieColors[index % pieColors.length]}
+              />
+            ))}
+          </Pie>
+          <Tooltip formatter={(value) => `${value.toLocaleString()}円`} />
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  )}
+</section>
         <section style={styles.history}>
           <h3 style={styles.subTitle}>履歴</h3>
           {posts.length === 0 ? (
@@ -265,9 +387,9 @@ const deleteOne = async (id) => {
               </div>
             
             <div style={styles.right}>
-              <p style={{ color: post.type === "income" ? "green" : "red" }}>
-                {post.type === "income" ? "+" : "-"}
-                {post.money}円
+              <p style={{ color: post.type === "入金" ? "green" : "red" }}>
+                {post.type === "入金" ? "+" : "-"}
+                {(post.amount ?? post.money).toLocaleString()}円
               </p>
               
               <button onClick={() => deleteOne(post.id)}>削除</button>
